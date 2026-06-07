@@ -1,0 +1,30 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #06061a;
+  color: #fff;
+  overflow-x: hidden;
+}
+
+button:hover {
+  opacity: 0.85;
+}
+
+input:focus {
+  outline: none;
+  border-color: rgba(255, 23, 68, 0.6) !important;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #06061a;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 23, 68, 0.4);
+}
