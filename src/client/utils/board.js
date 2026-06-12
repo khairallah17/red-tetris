@@ -110,3 +110,27 @@ export const mergeBoard = (board, shape, x, y, color) => {
 // Ghost piece Y (for visual aid)
 export const ghostY = (board, shape, x, currentY) =>
   hardDropY(board, shape, x, currentY);
+
+// ─── Scoring system (bonus) ──────────────────────────────────────────────────
+
+// Classic Tetris line-clear scoring, scaled by level (level is 1-based).
+// 1 line = 40, 2 = 100, 3 = 300, 4 (a "Tetris") = 1200.
+const LINE_SCORES = [0, 40, 100, 300, 1200];
+
+export const lineScore = (linesCleared, level = 1) => {
+  const base = LINE_SCORES[linesCleared] || 0;
+  return base * level;
+};
+
+// Bonus points for dropping a piece: 1 point per soft-drop cell,
+// 2 points per hard-drop cell. `cells` is the number of rows fallen.
+export const dropScore = (cells, hard = false) =>
+  Math.max(0, cells) * (hard ? 2 : 1);
+
+// Level increases every 10 cleared lines, starting at level 1.
+export const computeLevel = (totalLines) => Math.floor(totalLines / 10) + 1;
+
+// Gravity interval (ms) for a given level. Speeds up as the level rises,
+// clamped so it never becomes unplayably fast.
+export const gravityInterval = (level, base = 800) =>
+  Math.max(80, Math.round(base * Math.pow(0.85, level - 1)));

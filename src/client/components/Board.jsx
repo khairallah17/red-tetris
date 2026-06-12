@@ -3,7 +3,7 @@ import { useSelector } from 'react-redux';
 import Cell from './Cell';
 import { mergeBoard, ghostY, BOARD_WIDTH, BOARD_HEIGHT } from '../utils/board';
 
-const Board = () => {
+const Board = ({ invisible = false }) => {
   const { board, currentPiece } = useSelector((state) => state.board);
 
   const displayBoard = useMemo(() => {
@@ -52,10 +52,14 @@ const Board = () => {
           const key = `${rowIdx},${colIdx}`;
           const isGhost = ghostCells.has(key) && !cell.filled;
           const ghostCell = isGhost ? { filled: true, color: currentPiece?.color } : null;
+          // In invisible mode, hide the settled pile but keep the active
+          // falling piece (and its ghost) visible.
+          const hidden = invisible && cell.filled && !cell.active;
+          const shown = hidden ? { filled: false, color: null, penalty: false } : cell;
           return (
             <Cell
               key={key}
-              cell={isGhost ? ghostCell : cell}
+              cell={isGhost ? ghostCell : shown}
               isGhost={isGhost}
             />
           );

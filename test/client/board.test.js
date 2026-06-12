@@ -10,6 +10,10 @@ import {
   ghostY,
   BOARD_WIDTH,
   BOARD_HEIGHT,
+  lineScore,
+  dropScore,
+  computeLevel,
+  gravityInterval,
 } from '../../src/client/utils/board';
 
 const I_SHAPE = [[1, 1, 1, 1]];
@@ -192,5 +196,67 @@ describe('ghostY', () => {
   it('returns same as hardDropY', () => {
     const board = createBoard();
     expect(ghostY(board, I_SHAPE, 3, 0)).toBe(hardDropY(board, I_SHAPE, 3, 0));
+  });
+});
+
+describe('scoring (bonus)', () => {
+  describe('lineScore', () => {
+    it('returns 0 for no lines', () => {
+      expect(lineScore(0, 1)).toBe(0);
+    });
+    it('uses classic single/double/triple/tetris values at level 1', () => {
+      expect(lineScore(1, 1)).toBe(40);
+      expect(lineScore(2, 1)).toBe(100);
+      expect(lineScore(3, 1)).toBe(300);
+      expect(lineScore(4, 1)).toBe(1200);
+    });
+    it('scales with the level', () => {
+      expect(lineScore(4, 3)).toBe(3600);
+      expect(lineScore(1, 5)).toBe(200);
+    });
+    it('defaults to level 1 and handles out-of-range counts', () => {
+      expect(lineScore(1)).toBe(40);
+      expect(lineScore(7, 1)).toBe(0);
+    });
+  });
+
+  describe('dropScore', () => {
+    it('awards 1 point per soft-drop cell', () => {
+      expect(dropScore(5)).toBe(5);
+      expect(dropScore(1, false)).toBe(1);
+    });
+    it('awards 2 points per hard-drop cell', () => {
+      expect(dropScore(5, true)).toBe(10);
+    });
+    it('never goes negative', () => {
+      expect(dropScore(-3, true)).toBe(0);
+    });
+  });
+
+  describe('computeLevel', () => {
+    it('starts at level 1', () => {
+      expect(computeLevel(0)).toBe(1);
+      expect(computeLevel(9)).toBe(1);
+    });
+    it('increments every 10 lines', () => {
+      expect(computeLevel(10)).toBe(2);
+      expect(computeLevel(25)).toBe(3);
+      expect(computeLevel(100)).toBe(11);
+    });
+  });
+
+  describe('gravityInterval', () => {
+    it('returns the base interval at level 1', () => {
+      expect(gravityInterval(1, 800)).toBe(800);
+    });
+    it('gets faster as the level rises', () => {
+      expect(gravityInterval(5, 800)).toBeLessThan(gravityInterval(2, 800));
+    });
+    it('is clamped to a minimum', () => {
+      expect(gravityInterval(50, 800)).toBeGreaterThanOrEqual(80);
+    });
+    it('respects a custom base', () => {
+      expect(gravityInterval(1, 350)).toBe(350);
+    });
   });
 });

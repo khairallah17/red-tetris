@@ -8,12 +8,15 @@ const GAME_STATES = {
   ENDED: 'ended',
 };
 
+const DEFAULT_MODES = { invisible: false, gravity: false };
+
 function Game(name) {
   this.name = name;
   this.players = [];
   this.state = GAME_STATES.WAITING;
   this.pieces = []; // shared piece sequence
   this.winner = null;
+  this.modes = { ...DEFAULT_MODES };
 }
 
 Game.prototype.addPlayer = function (player) {
@@ -44,8 +47,18 @@ Game.prototype.getHost = function () {
   return this.players.find((p) => p.isHost) || null;
 };
 
-Game.prototype.start = function () {
+Game.prototype.setModes = function (modes) {
+  if (!modes || typeof modes !== 'object') return;
+  this.modes = {
+    invisible: !!modes.invisible,
+    gravity: !!modes.gravity,
+  };
+};
+
+Game.prototype.start = function (modes) {
   if (this.state !== GAME_STATES.WAITING) return false;
+  if (this.players.length === 0) return false;
+  if (modes) this.setModes(modes);
   this.state = GAME_STATES.PLAYING;
   this.winner = null;
   // Pre-generate shared piece sequence (enough for a long game)
@@ -80,6 +93,7 @@ Game.prototype.reset = function () {
   this.state = GAME_STATES.WAITING;
   this.pieces = [];
   this.winner = null;
+  this.modes = { ...DEFAULT_MODES };
   this.players.forEach((p) => {
     p.reset();
     p.setHost(false);
@@ -106,8 +120,9 @@ Game.prototype.toJSON = function () {
     name: this.name,
     state: this.state,
     winner: this.winner,
+    modes: { ...this.modes },
     players: this.players.map((p) => p.toJSON()),
   };
 };
 
-module.exports = { Game, GAME_STATES };
+module.exports = { Game, GAME_STATES, DEFAULT_MODES };

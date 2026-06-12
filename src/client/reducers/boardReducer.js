@@ -6,6 +6,7 @@ import {
 import {
   createBoard, isValidPosition, lockPiece, clearLines,
   addPenaltyLines, computeSpectrum, hardDropY,
+  lineScore, dropScore, computeLevel,
 } from '../utils/board';
 
 const initialState = {
@@ -14,6 +15,8 @@ const initialState = {
   nextPiece: null,
   isLost: false,
   linesCleared: 0,
+  score: 0,
+  level: 1,
   pendingLines: 0,
   spectrumDirty: false,
 };
@@ -96,7 +99,9 @@ const boardReducer = (state = initialState, action) => {
       const moved = tryMove(board, currentPiece, 0, 1);
 
       if (moved) {
-        return { ...state, currentPiece: moved };
+        // Manual soft drop earns a point per cell; gravity ticks do not.
+        const softBonus = action.payload?.soft ? dropScore(1, false) : 0;
+        return { ...state, currentPiece: moved, score: state.score + softBonus };
       }
 
       // Lock piece
@@ -109,12 +114,16 @@ const boardReducer = (state = initialState, action) => {
         : cleared;
 
       const spectrum = computeSpectrum(finalBoard);
+      const totalLines = state.linesCleared + linesCleared;
+      const level = computeLevel(totalLines);
 
       return {
         ...state,
         board: finalBoard,
         currentPiece: null,
-        linesCleared: state.linesCleared + linesCleared,
+        linesCleared: totalLines,
+        level,
+        score: state.score + lineScore(linesCleared, state.level),
         pendingLines: 0,
         spectrumDirty: true,
         _lastLinesCleared: linesCleared,
@@ -127,6 +136,7 @@ const boardReducer = (state = initialState, action) => {
       const { currentPiece, board } = state;
       const dropY = hardDropY(board, currentPiece.shape, currentPiece.x, currentPiece.y);
       const dropped = { ...currentPiece, y: dropY };
+      const dropCells = dropY - currentPiece.y;
 
       const locked = lockPiece(board, dropped.shape, dropped.x, dropped.y, dropped.color);
       const { board: cleared, linesCleared } = clearLines(locked);
@@ -136,12 +146,16 @@ const boardReducer = (state = initialState, action) => {
         : cleared;
 
       const spectrum = computeSpectrum(finalBoard);
+      const totalLines = state.linesCleared + linesCleared;
+      const level = computeLevel(totalLines);
 
       return {
         ...state,
         board: finalBoard,
         currentPiece: null,
-        linesCleared: state.linesCleared + linesCleared,
+        linesCleared: totalLines,
+        level,
+        score: state.score + lineScore(linesCleared, state.level) + dropScore(dropCells, true),
         pendingLines: 0,
         spectrumDirty: true,
         _lastLinesCleared: linesCleared,

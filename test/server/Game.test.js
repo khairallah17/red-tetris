@@ -160,4 +160,39 @@ describe('Game', () => {
     expect(json.state).toBe(GAME_STATES.WAITING);
     expect(Array.isArray(json.players)).toBe(true);
   });
+
+  describe('game modes (bonus)', () => {
+    it('defaults to all modes off', () => {
+      expect(game.modes).toEqual({ invisible: false, gravity: false });
+      expect(game.toJSON().modes).toEqual({ invisible: false, gravity: false });
+    });
+
+    it('setModes coerces values to booleans', () => {
+      game.setModes({ invisible: 1, gravity: 0 });
+      expect(game.modes).toEqual({ invisible: true, gravity: false });
+    });
+
+    it('setModes ignores non-object input', () => {
+      game.setModes(null);
+      expect(game.modes).toEqual({ invisible: false, gravity: false });
+    });
+
+    it('start applies the provided modes', () => {
+      game.addPlayer(makePlayer('s1', 'Alice'));
+      game.start({ invisible: true, gravity: true });
+      expect(game.modes).toEqual({ invisible: true, gravity: true });
+      expect(game.toJSON().modes).toEqual({ invisible: true, gravity: true });
+    });
+
+    it('start returns false with no players', () => {
+      expect(game.start()).toBe(false);
+    });
+
+    it('reset clears modes back to default', () => {
+      game.addPlayer(makePlayer('s1', 'Alice'));
+      game.start({ invisible: true });
+      game.reset();
+      expect(game.modes).toEqual({ invisible: false, gravity: false });
+    });
+  });
 });

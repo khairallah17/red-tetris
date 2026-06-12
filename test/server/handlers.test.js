@@ -1,11 +1,24 @@
 'use strict';
 
+const os = require('os');
+const path = require('path');
+const fs = require('fs');
+
+// Use an isolated temp file for the persistent leaderboard during tests.
+const SCORES_FILE = path.join(os.tmpdir(), `red-tetris-test-scores-${process.pid}.json`);
+process.env.SCORES_FILE = SCORES_FILE;
+
 // Mock socket.io so we can test handlers without a real server
-const { registerHandlers, games } = require('../../src/server/handlers');
+const { registerHandlers, games, scoreStore } = require('../../src/server/handlers');
+
+afterAll(() => {
+  try { fs.unlinkSync(SCORES_FILE); } catch (e) { /* ignore */ }
+});
 
 // Minimal socket/io mock factory
 const makeIo = () => {
   const roomEmits = {};
+  const globalEmits = [];
   const io = {
     to: (room) => ({
       emit: (event, data) => {
@@ -13,7 +26,9 @@ const makeIo = () => {
         roomEmits[room].push({ event, data });
       },
     }),
+    emit: (event, data) => globalEmits.push({ event, data }),
     _roomEmits: roomEmits,
+    _globalEmits: globalEmits,
   };
   return io;
 };
@@ -386,5 +401,96 @@ describe('handlers: spectrum_update', () => {
     const s1 = makeSocket('s1');
     registerHandlers(io, s1);
     expect(() => s1._trigger('spectrum_update', { room: 'ghost', spectrum: [] })).not.toThrow();
+  });
+});
+
+describe('handlers: game modes (bonus)', () => {
+  it('start_game forwards selected modes into the game state', () => {
+    const io = makeIo();
+    const s1 = makeSocket('s1');
+    registerHandlers(io, s1);
+
+    s1._trigger('join_game', { room: 'room1', playerName: 'Alice' });
+    s1._trigger('start_game', { room: 'room1', modes: { invisible: true, gravity: true } });
+
+    const roomEvents = io._roomEmits['room1'] || [];
+    const started = roomEvents.find((e) => e.event === 'game_started');
+    expect(started).toBeDefined();
+    expect(started.data.modes).toEqual({ invisible: true, gravity: true });
+  });
+
+  it('defaults to no modes when none provided', () => {
+    const io = makeIo();
+    const s1 = makeSocket('s1');
+    registerHandlers(io, s1);
+
+    s1._trigger('join_game', { room: 'room1', playerName: 'Alice' });
+    s1._trigger('start_game', { room: 'room1' });
+
+    const started = (io._roomEmits['room1'] || []).find((e) => e.event === 'game_started');
+    expect(started.data.modes).toEqual({ invisible: false, gravity: false });
+  });
+});
+
+describe('handlers: high scores (bonus)', () => {
+  beforeEach(() => {
+    scoreStore.clear();
+  });
+
+  it('emits current high scores on connection', () => {
+    const io = makeIo();
+    const s1 = makeSocket('s1');
+    registerHandlers(io, s1);
+
+    const hs = s1._emitted.find((e) => e.event === 'high_scores');
+    expect(hs).toBeDefined();
+    expect(Array.isArray(hs.data)).toBe(true);
+  });
+
+  it('get_high_scores returns the leaderboard', () => {
+    const io = makeIo();
+    const s1 = makeSocket('s1');
+    registerHandlers(io, s1);
+    s1._emitted.length = 0;
+    s1._trigger('get_high_scores', {});
+
+    const hs = s1._emitted.find((e) => e.event === 'high_scores');
+    expect(hs).toBeDefined();
+  });
+
+  it('submit_score records and broadcasts the leaderboard', () => {
+    const io = makeIo();
+    const s1 = makeSocket('s1');
+    registerHandlers(io, s1);
+
+    s1._trigger('join_game', { room: 'room1', playerName: 'Alice' });
+    s1._trigger('submit_score', { room: 'room1', score: 1500 });
+
+    const broadcast = io._globalEmits.find((e) => e.event === 'high_scores');
+    expect(broadcast).toBeDefined();
+    expect(broadcast.data[0]).toMatchObject({ name: 'Alice', score: 1500 });
+    expect(scoreStore.top()[0].score).toBe(1500);
+  });
+
+  it('ignores submit_score from an unknown player', () => {
+    const io = makeIo();
+    const s1 = makeSocket('s1');
+    registerHandlers(io, s1);
+
+    s1._trigger('submit_score', { room: 'ghost', score: 999 });
+    expect(io._globalEmits.find((e) => e.event === 'high_scores')).toBeUndefined();
+    expect(scoreStore.top()).toHaveLength(0);
+  });
+
+  it('ignores zero or invalid scores', () => {
+    const io = makeIo();
+    const s1 = makeSocket('s1');
+    registerHandlers(io, s1);
+
+    s1._trigger('join_game', { room: 'room1', playerName: 'Alice' });
+    s1._trigger('submit_score', { room: 'room1', score: 0 });
+
+    expect(io._globalEmits.find((e) => e.event === 'high_scores')).toBeUndefined();
+    expect(scoreStore.top()).toHaveLength(0);
   });
 });

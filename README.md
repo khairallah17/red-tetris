@@ -130,9 +130,12 @@ Or use the lobby UI to fill in room and name.
 - **Spectrum**: column heights broadcast to opponents in real-time via socket
 - **SPA**: single `index.html` + `bundle.js`, all routing client-side via MemoryRouter
 
-## Bonuses (optional)
+## Bonuses (implemented)
 
-- Scoring system (clear bonus for Tetris = 4 lines)
-- Persistent high scores
-- Game modes: invisible pieces, gravity ramp
-- FRP with `flyd` instead of Redux
+- **Scoring system** — classic Tetris scoring (single/double/triple/Tetris = 40/100/300/1200), scaled by level. Soft-drop (+1/cell) and hard-drop (+2/cell) bonuses. Level rises every 10 cleared lines and speeds up gravity. Score and level shown live in the HUD.
+- **Persistent high scores** — server-side `ScoreStore` writes a sorted top-20 leaderboard to a JSON file (`data/scores.json`, configurable via `SCORES_FILE`) that survives restarts. Shown on the lobby screen, broadcast in real time.
+- **New game modes** (host-selectable in the waiting room, synchronized to all players in the room):
+  - 👻 **Invisible** — the settled pile is hidden; only the active falling piece and its ghost are visible.
+  - ⚡ **Gravity+** — faster base fall speed.
+
+All bonus logic keeps the project's constraints: client board/scoring logic is pure functions (no `this`); the server uses prototype-based models (`ScoreStore`, `Game`, `Player`, `Piece`). Bonus code is covered by unit tests.

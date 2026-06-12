@@ -3,3 +3,4 @@ public/bundle.js
 .env
 coverage/
 *.log
+data/

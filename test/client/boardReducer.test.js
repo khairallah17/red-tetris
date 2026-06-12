@@ -3,7 +3,7 @@ import {
   NEW_PIECE, MOVE_LEFT, MOVE_RIGHT, MOVE_DOWN,
   ROTATE_PIECE, HARD_DROP, ADD_PENALTY, PLAYER_LOST, RESET_BOARD,
 } from '../../src/client/actions/types';
-import { BOARD_HEIGHT, BOARD_WIDTH } from '../../src/client/utils/board';
+import { BOARD_HEIGHT, BOARD_WIDTH, createBoard } from '../../src/client/utils/board';
 
 const I_PIECE = {
   type: 'I',
@@ -142,5 +142,77 @@ describe('boardReducer', () => {
     const result = boardReducer(state, { type: MOVE_DOWN });
     // After locking, the line should have cleared
     expect(result.linesCleared).toBeGreaterThan(0);
+  });
+});
+
+describe('boardReducer: scoring (bonus)', () => {
+  const fillRowExcept = (cols) =>
+    Array.from({ length: BOARD_WIDTH }, (_, i) =>
+      cols.includes(i)
+        ? { filled: false, color: null, penalty: false }
+        : { filled: true, color: 'red', penalty: false }
+    );
+
+  // Fresh state with a clean board (getInitialState() shares one board array).
+  const freshState = (overrides = {}) => ({
+    ...getInitialState(),
+    board: createBoard(),
+    ...overrides,
+  });
+
+  it('initial state has score 0 and level 1', () => {
+    const state = getInitialState();
+    expect(state.score).toBe(0);
+    expect(state.level).toBe(1);
+  });
+
+  it('awards a point for a manual soft drop', () => {
+    const state = freshState({ currentPiece: makePiece({ x: 4, y: 5 }) });
+    const result = boardReducer(state, { type: MOVE_DOWN, payload: { soft: true } });
+    expect(result.score).toBe(1);
+  });
+
+  it('does not award points for a gravity tick', () => {
+    const state = freshState({ currentPiece: makePiece({ x: 4, y: 5 }) });
+    const result = boardReducer(state, { type: MOVE_DOWN });
+    expect(result.score).toBe(0);
+  });
+
+  it('awards line-clear points when MOVE_DOWN locks a full line', () => {
+    const state = freshState({
+      currentPiece: { type: 'I', color: 'cyan', x: 3, y: BOARD_HEIGHT - 1, shape: [[1, 1, 1, 1]] },
+    });
+    state.board[BOARD_HEIGHT - 1] = fillRowExcept([3, 4, 5, 6]);
+    const result = boardReducer(state, { type: MOVE_DOWN });
+    expect(result.score).toBe(40); // one line at level 1
+  });
+
+  it('awards hard-drop distance points plus line clears', () => {
+    const state = freshState({
+      currentPiece: { type: 'I', color: 'cyan', x: 3, y: 0, shape: [[1, 1, 1, 1]] },
+    });
+    state.board[BOARD_HEIGHT - 1] = fillRowExcept([3, 4, 5, 6]);
+    const result = boardReducer(state, { type: HARD_DROP });
+    // 1 line cleared (40) + drop distance bonus (2 per cell)
+    expect(result.linesCleared).toBe(1);
+    expect(result.score).toBeGreaterThan(40);
+  });
+
+  it('raises the level after 10 cleared lines', () => {
+    const state = freshState({
+      linesCleared: 9,
+      currentPiece: { type: 'I', color: 'cyan', x: 3, y: BOARD_HEIGHT - 1, shape: [[1, 1, 1, 1]] },
+    });
+    state.board[BOARD_HEIGHT - 1] = fillRowExcept([3, 4, 5, 6]);
+    const result = boardReducer(state, { type: MOVE_DOWN });
+    expect(result.linesCleared).toBe(10);
+    expect(result.level).toBe(2);
+  });
+
+  it('RESET_BOARD restores score and level', () => {
+    const dirty = { ...getInitialState(), score: 500, level: 4 };
+    const result = boardReducer(dirty, { type: RESET_BOARD });
+    expect(result.score).toBe(0);
+    expect(result.level).toBe(1);
   });
 });

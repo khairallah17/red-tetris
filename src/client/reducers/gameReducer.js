@@ -1,6 +1,6 @@
 import {
   SET_PLAYER, GAME_UPDATED, GAME_STARTED, GAME_OVER,
-  SET_ERROR, CLEAR_ERROR, OPPONENT_SPECTRUM,
+  SET_ERROR, CLEAR_ERROR, OPPONENT_SPECTRUM, HIGH_SCORES,
 } from '../actions/types';
 
 const initialState = {
@@ -11,6 +11,7 @@ const initialState = {
   winner: null,
   error: null,
   opponents: {}, // { playerId: { playerName, spectrum } }
+  highScores: [],
 };
 
 const gameReducer = (state = initialState, action) => {
@@ -54,6 +55,9 @@ const gameReducer = (state = initialState, action) => {
         },
       };
     }
+
+    case HIGH_SCORES:
+      return { ...state, highScores: action.payload };
 
     case SET_ERROR:
       return { ...state, error: action.payload };

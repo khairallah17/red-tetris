@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { joinGame, initSocketListeners } from '../actions/gameActions';
+import HighScores from './HighScores';
 
 const LobbyScreen = () => {
   const { room, playerName } = useParams();
@@ -164,6 +165,8 @@ const LobbyScreen = () => {
         Or navigate directly to<br />
         <span style={{ color: 'rgba(255,255,255,0.4)' }}>/:room/:playerName</span>
       </div>
+
+      <HighScores />
     </div>
   );
 };

@@ -2,9 +2,13 @@
 
 const { Player } = require('./models/Player');
 const { Game } = require('./models/Game');
+const { ScoreStore } = require('./models/ScoreStore');
 
 // In-memory store
 const games = new Map();
+
+// Persistent leaderboard (bonus)
+const scoreStore = new ScoreStore(process.env.SCORES_FILE);
 
 function getOrCreateGame(name) {
   if (!games.has(name)) {
@@ -14,6 +18,26 @@ function getOrCreateGame(name) {
 }
 
 function registerHandlers(io, socket) {
+  // Send current leaderboard on connect (bonus)
+  socket.emit('high_scores', scoreStore.top());
+
+  // GET HIGH SCORES (leaderboard)
+  socket.on('get_high_scores', () => {
+    socket.emit('high_scores', scoreStore.top());
+  });
+
+  // SUBMIT SCORE (bonus persistence) — recorded once per finished game
+  socket.on('submit_score', ({ room, score }) => {
+    const game = games.get(room);
+    const player = game ? game.getPlayer(socket.id) : null;
+    const name = player ? player.name : null;
+    if (!name) return;
+    const recorded = scoreStore.record({ name, score, room });
+    if (recorded) {
+      io.emit('high_scores', scoreStore.top());
+    }
+  });
+
   // JOIN ROOM
   socket.on('join_game', ({ room, playerName }) => {
     const game = getOrCreateGame(room);
@@ -43,7 +67,7 @@ function registerHandlers(io, socket) {
   });
 
   // START GAME (host only)
-  socket.on('start_game', ({ room }) => {
+  socket.on('start_game', ({ room, modes }) => {
     const game = games.get(room);
     if (!game) return;
 
@@ -53,7 +77,7 @@ function registerHandlers(io, socket) {
       return;
     }
 
-    const started = game.start();
+    const started = game.start(modes);
     if (!started) {
       socket.emit('error', { message: 'Game cannot be started.' });
       return;
@@ -172,4 +196,4 @@ function registerHandlers(io, socket) {
   });
 }
 
-module.exports = { registerHandlers, games };
+module.exports = { registerHandlers, games, scoreStore };

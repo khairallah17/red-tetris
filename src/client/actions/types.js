@@ -21,3 +21,6 @@ export const PLAYER_LOST = 'PLAYER_LOST';
 export const UPDATE_SPECTRUM = 'UPDATE_SPECTRUM';
 export const OPPONENT_SPECTRUM = 'OPPONENT_SPECTRUM';
 export const RESET_BOARD = 'RESET_BOARD';
+
+// Bonus: leaderboard
+export const HIGH_SCORES = 'HIGH_SCORES';

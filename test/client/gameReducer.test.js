@@ -1,7 +1,7 @@
 import gameReducer from '../../src/client/reducers/gameReducer';
 import {
   SET_PLAYER, GAME_UPDATED, GAME_STARTED, GAME_OVER,
-  SET_ERROR, CLEAR_ERROR, OPPONENT_SPECTRUM,
+  SET_ERROR, CLEAR_ERROR, OPPONENT_SPECTRUM, HIGH_SCORES,
 } from '../../src/client/actions/types';
 
 const initialState = {
@@ -12,6 +12,7 @@ const initialState = {
   winner: null,
   error: null,
   opponents: {},
+  highScores: [],
 };
 
 const mockPlayer = { id: 'abc', name: 'MedK', isHost: true };
@@ -76,6 +77,12 @@ describe('gameReducer', () => {
       payload: { playerId: 'p1', playerName: 'Opp1', spectrum: null },
     });
     expect(state.opponents['p1']).toBeUndefined();
+  });
+
+  it('HIGH_SCORES stores the leaderboard', () => {
+    const scores = [{ name: 'Alice', score: 1200 }, { name: 'Bob', score: 800 }];
+    const state = gameReducer(undefined, { type: HIGH_SCORES, payload: scores });
+    expect(state.highScores).toEqual(scores);
   });
 
   it('unknown action returns state unchanged', () => {

@@ -3,6 +3,7 @@ import {
   JOIN_GAME, GAME_UPDATED, GAME_STARTED, GAME_OVER,
   SET_ERROR, CLEAR_ERROR, SET_PLAYER, NEW_PIECE,
   ADD_PENALTY, OPPONENT_SPECTRUM, RESET_BOARD, PLAYER_LOST,
+  HIGH_SCORES,
 } from './types';
 
 // ─── Socket listener registration ───────────────────────────────────────────
@@ -45,6 +46,10 @@ export const initSocketListeners = () => (dispatch) => {
     dispatch({ type: OPPONENT_SPECTRUM, payload: { playerId, playerName: '', spectrum: null } });
   });
 
+  socket.on('high_scores', (scores) => {
+    dispatch({ type: HIGH_SCORES, payload: scores || [] });
+  });
+
   socket.on('error', ({ message }) => {
     dispatch({ type: SET_ERROR, payload: message });
   });
@@ -58,8 +63,16 @@ export const joinGame = (room, playerName) => (dispatch) => {
   socket.emit('join_game', { room, playerName });
 };
 
-export const startGame = (room) => () => {
-  getSocket().emit('start_game', { room });
+export const startGame = (room, modes = {}) => () => {
+  getSocket().emit('start_game', { room, modes });
+};
+
+export const submitScore = (room, score) => () => {
+  getSocket().emit('submit_score', { room, score });
+};
+
+export const getHighScores = () => () => {
+  getSocket().emit('get_high_scores');
 };
 
 export const restartGame = (room) => () => {

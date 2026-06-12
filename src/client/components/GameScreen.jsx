@@ -1,28 +1,35 @@
-import React, { useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import Board from './Board';
 import NextPiece from './NextPiece';
 import Spectrum from './Spectrum';
 import {
   requestNextPiece, sendSpectrum, sendLinesCleared,
-  sendPlayerLost, restartGame, startGame,
+  sendPlayerLost, restartGame, startGame, submitScore,
 } from '../actions/gameActions';
 import {
   MOVE_LEFT, MOVE_RIGHT, MOVE_DOWN, ROTATE_PIECE, HARD_DROP,
 } from '../actions/types';
-
-const TICK_INTERVAL = 600; // ms per gravity tick
+import { gravityInterval } from '../utils/board';
 
 const GameScreen = () => {
   const dispatch = useDispatch();
 
   // All selectors at top level — no hooks in JSX
   const { player, game, isOver, winner, opponents } = useSelector((s) => s.game);
-  const { currentPiece, nextPiece, isLost, spectrumDirty, linesCleared, _lastLinesCleared, _spectrum } =
+  const { currentPiece, nextPiece, isLost, spectrumDirty, linesCleared, score, level, _lastLinesCleared, _spectrum } =
     useSelector((s) => s.board);
 
   const room = game?.name;
+  const modes = game?.modes || {};
+  const invisible = !!modes.invisible;
   const tickRef = useRef(null);
+  const scoreSubmittedRef = useRef(false);
+
+  // Host's local selection of game modes for the next round
+  const [selectedModes, setSelectedModes] = useState({ invisible: false, gravity: false });
+  const toggleMode = (key) =>
+    setSelectedModes((m) => ({ ...m, [key]: !m[key] }));
 
   // ─── Request next piece when currentPiece is null ───────────────────────
   useEffect(() => {
@@ -37,6 +44,20 @@ const GameScreen = () => {
       dispatch(sendPlayerLost(room));
     }
   }, [isLost]);
+
+  // ─── Submit score to leaderboard once per game (bonus) ──────────────────
+  useEffect(() => {
+    if (game?.state === 'playing') {
+      scoreSubmittedRef.current = false;
+    }
+  }, [game?.state]);
+
+  useEffect(() => {
+    if ((isLost || isOver) && !scoreSubmittedRef.current && score > 0) {
+      scoreSubmittedRef.current = true;
+      dispatch(submitScore(room, score));
+    }
+  }, [isLost, isOver, score]);
 
   // ─── Spectrum sync ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -53,6 +74,9 @@ const GameScreen = () => {
   }, [_lastLinesCleared]);
 
   // ─── Gravity tick ────────────────────────────────────────────────────────
+  // Speed scales with the level; the "gravity" game mode uses a faster base.
+  const baseGravity = modes.gravity ? 350 : 800;
+  const tickInterval = gravityInterval(level, baseGravity);
   useEffect(() => {
     if (game?.state !== 'playing' || isLost || isOver) {
       clearInterval(tickRef.current);
@@ -60,9 +84,9 @@ const GameScreen = () => {
     }
     tickRef.current = setInterval(() => {
       dispatch({ type: MOVE_DOWN });
-    }, TICK_INTERVAL);
+    }, tickInterval);
     return () => clearInterval(tickRef.current);
-  }, [game?.state, isLost, isOver]);
+  }, [game?.state, isLost, isOver, tickInterval]);
 
   // ─── Keyboard controls ───────────────────────────────────────────────────
   const handleKey = useCallback(
@@ -83,7 +107,7 @@ const GameScreen = () => {
           break;
         case 'ArrowDown':
           e.preventDefault();
-          dispatch({ type: MOVE_DOWN });
+          dispatch({ type: MOVE_DOWN, payload: { soft: true } });
           break;
         case 'Space':
           e.preventDefault();
@@ -159,6 +183,9 @@ const GameScreen = () => {
               YOU LOST — Waiting for others...
             </div>
           )}
+          <div style={{ fontSize: 18, color: '#ffee00', marginBottom: 30 }}>
+            SCORE: {score} · LINES: {linesCleared}
+          </div>
           {player?.isHost && isOver && (
             <button
               onClick={() => dispatch(restartGame(room))}
@@ -192,12 +219,36 @@ const GameScreen = () => {
           <NextPiece piece={nextPiece} />
           <div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
-              Lines
+              Score
             </div>
-            <div style={{ fontSize: 24, color: '#00e676', fontWeight: 'bold' }}>
-              {linesCleared}
+            <div style={{ fontSize: 24, color: '#ffee00', fontWeight: 'bold' }}>
+              {score}
             </div>
           </div>
+          <div style={{ display: 'flex', gap: 20 }}>
+            <div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
+                Lines
+              </div>
+              <div style={{ fontSize: 20, color: '#00e676', fontWeight: 'bold' }}>
+                {linesCleared}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>
+                Level
+              </div>
+              <div style={{ fontSize: 20, color: '#2979ff', fontWeight: 'bold' }}>
+                {level}
+              </div>
+            </div>
+          </div>
+          {(modes.invisible || modes.gravity) && (
+            <div style={{ fontSize: 10, color: '#ff6d00', letterSpacing: 1, textTransform: 'uppercase', lineHeight: 1.6 }}>
+              {modes.invisible && <div>👻 Invisible</div>}
+              {modes.gravity && <div>⚡ Gravity+</div>}
+            </div>
+          )}
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', lineHeight: 1.8 }}>
             ← → Move<br />
             ↑ Rotate<br />
@@ -207,7 +258,7 @@ const GameScreen = () => {
         </div>
 
         {/* Board */}
-        <Board />
+        <Board invisible={invisible} />
 
         {/* Right sidebar: opponents */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 10, minWidth: 80 }}>
@@ -226,23 +277,49 @@ const GameScreen = () => {
       {game?.state === 'waiting' && (
         <div style={{ marginTop: 30, textAlign: 'center' }}>
           {player?.isHost ? (
-            <button
-              onClick={() => dispatch(startGame(room))}
-              style={{
-                padding: '14px 40px',
-                fontSize: 18,
-                backgroundColor: '#00e676',
-                color: '#000',
-                border: 'none',
-                cursor: 'pointer',
-                letterSpacing: 3,
-                textTransform: 'uppercase',
-                fontWeight: 'bold',
-                fontFamily: 'inherit',
-              }}
-            >
-              Start Game
-            </button>
+            <>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
+                {[
+                  { key: 'invisible', label: '👻 Invisible' },
+                  { key: 'gravity', label: '⚡ Gravity+' },
+                ].map(({ key, label }) => (
+                  <button
+                    key={key}
+                    onClick={() => toggleMode(key)}
+                    style={{
+                      padding: '8px 16px',
+                      fontSize: 12,
+                      backgroundColor: selectedModes[key] ? '#ff6d00' : 'rgba(255,255,255,0.06)',
+                      color: selectedModes[key] ? '#000' : 'rgba(255,255,255,0.6)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      cursor: 'pointer',
+                      letterSpacing: 1,
+                      textTransform: 'uppercase',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => dispatch(startGame(room, selectedModes))}
+                style={{
+                  padding: '14px 40px',
+                  fontSize: 18,
+                  backgroundColor: '#00e676',
+                  color: '#000',
+                  border: 'none',
+                  cursor: 'pointer',
+                  letterSpacing: 3,
+                  textTransform: 'uppercase',
+                  fontWeight: 'bold',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Start Game
+              </button>
+            </>
           ) : (
             <div style={{ color: 'rgba(255,255,255,0.5)' }}>
               Waiting for host to start...
