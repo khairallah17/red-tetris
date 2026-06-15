@@ -99,7 +99,6 @@ const boardReducer = (state = initialState, action) => {
       const moved = tryMove(board, currentPiece, 0, 1);
 
       if (moved) {
-        // Manual soft drop earns a point per cell; gravity ticks do not.
         const softBonus = action.payload?.soft ? dropScore(1, false) : 0;
         return { ...state, currentPiece: moved, score: state.score + softBonus };
       }

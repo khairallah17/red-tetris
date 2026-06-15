@@ -30,6 +30,8 @@ const gameReducer = (state = initialState, action) => {
       return {
         ...state,
         game: action.payload,
+        // Game recreated in lobby (e.g. after all players disconnected) — clear stale game-over state
+        ...(action.payload?.state === 'waiting' ? { isOver: false, winner: null } : {}),
         ...(synced ? { player: synced } : {}),
       };
     }
