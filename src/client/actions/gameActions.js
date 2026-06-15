@@ -1,56 +1,88 @@
-import { getSocket } from '../utils/socket';
+import { getSocket } from "../utils/socket";
 import {
-  JOIN_GAME, GAME_UPDATED, GAME_STARTED, GAME_OVER,
-  SET_ERROR, CLEAR_ERROR, SET_PLAYER, NEW_PIECE,
-  ADD_PENALTY, OPPONENT_SPECTRUM, RESET_BOARD, PLAYER_LOST,
+  JOIN_GAME,
+  GAME_UPDATED,
+  GAME_STARTED,
+  GAME_OVER,
+  GAME_RESTARTED,
+  SET_ERROR,
+  CLEAR_ERROR,
+  SET_PLAYER,
+  NEW_PIECE,
+  ADD_PENALTY,
+  OPPONENT_SPECTRUM,
+  RESET_BOARD,
+  PLAYER_LOST,
   HIGH_SCORES,
-} from './types';
+} from "./types";
 
 // ─── Socket listener registration ───────────────────────────────────────────
 
-export const initSocketListeners = () => (dispatch) => {
+export const initSocketListeners = () => (dispatch, getState) => {
   const socket = getSocket();
 
-  socket.on('joined_game', ({ player, game }) => {
+  // On reconnect, re-join the room preserving original host status
+  socket.io.on("reconnect", () => {
+    const { player, game } = getState().game;
+    if (player && game) {
+      socket.emit("rejoin_game", {
+        room: game.name,
+        playerName: player.name,
+        wasHost: player.isHost,
+      });
+    }
+  });
+
+  socket.on("joined_game", ({ player, game }) => {
     dispatch({ type: SET_PLAYER, payload: player });
     dispatch({ type: GAME_UPDATED, payload: game });
   });
 
-  socket.on('game_updated', (game) => {
+  socket.on("game_updated", (game) => {
     dispatch({ type: GAME_UPDATED, payload: game });
   });
 
-  socket.on('game_started', (game) => {
+  socket.on("game_started", (game) => {
     dispatch({ type: GAME_STARTED, payload: game });
     dispatch({ type: RESET_BOARD });
   });
 
-  socket.on('new_piece', ({ piece }) => {
+  socket.on("new_piece", ({ piece }) => {
     dispatch({ type: NEW_PIECE, payload: piece });
   });
 
-  socket.on('add_penalty', ({ lines }) => {
+  socket.on("add_penalty", ({ lines }) => {
     dispatch({ type: ADD_PENALTY, payload: lines });
   });
 
-  socket.on('opponent_spectrum', ({ playerId, playerName, spectrum }) => {
-    dispatch({ type: OPPONENT_SPECTRUM, payload: { playerId, playerName, spectrum } });
+  socket.on("opponent_spectrum", ({ playerId, playerName, spectrum }) => {
+    dispatch({
+      type: OPPONENT_SPECTRUM,
+      payload: { playerId, playerName, spectrum },
+    });
   });
 
-  socket.on('game_over', ({ winner }) => {
+  socket.on("game_over", ({ winner }) => {
     dispatch({ type: GAME_OVER, payload: { winner } });
   });
 
-  socket.on('player_eliminated', ({ playerId }) => {
+  socket.on("player_eliminated", ({ playerId }) => {
     // Remove that player's spectrum
-    dispatch({ type: OPPONENT_SPECTRUM, payload: { playerId, playerName: '', spectrum: null } });
+    dispatch({
+      type: OPPONENT_SPECTRUM,
+      payload: { playerId, playerName: "", spectrum: null },
+    });
   });
 
-  socket.on('high_scores', (scores) => {
+  socket.on("game_restarted", (game) => {
+    dispatch({ type: GAME_RESTARTED, payload: game });
+  });
+
+  socket.on("high_scores", (scores) => {
     dispatch({ type: HIGH_SCORES, payload: scores || [] });
   });
 
-  socket.on('error', ({ message }) => {
+  socket.on("error", ({ message }) => {
     dispatch({ type: SET_ERROR, payload: message });
   });
 };
@@ -60,39 +92,41 @@ export const initSocketListeners = () => (dispatch) => {
 export const joinGame = (room, playerName) => (dispatch) => {
   const socket = getSocket();
   dispatch({ type: CLEAR_ERROR });
-  socket.emit('join_game', { room, playerName });
+  socket.emit("join_game", { room, playerName });
 };
 
-export const startGame = (room, modes = {}) => () => {
-  getSocket().emit('start_game', { room, modes });
-};
+export const startGame =
+  (room, modes = {}) =>
+  () => {
+    getSocket().emit("start_game", { room, modes });
+  };
 
 export const submitScore = (room, score) => () => {
-  getSocket().emit('submit_score', { room, score });
+  getSocket().emit("submit_score", { room, score });
 };
 
 export const getHighScores = () => () => {
-  getSocket().emit('get_high_scores');
+  getSocket().emit("get_high_scores");
 };
 
-export const restartGame = (room) => () => {
-  getSocket().emit('restart_game', { room });
+export const restartGame = (room, playerName) => () => {
+  getSocket().emit("restart_game", { room, playerName });
 };
 
 export const requestNextPiece = (room) => () => {
-  getSocket().emit('request_piece', { room });
+  getSocket().emit("request_piece", { room });
 };
 
 export const sendSpectrum = (room, spectrum) => () => {
-  getSocket().emit('spectrum_update', { room, spectrum });
+  getSocket().emit("spectrum_update", { room, spectrum });
 };
 
 export const sendLinesCleared = (room, count) => () => {
-  getSocket().emit('lines_cleared', { room, count });
+  getSocket().emit("lines_cleared", { room, count });
 };
 
 export const sendPlayerLost = (room) => (dispatch) => {
-  getSocket().emit('player_lost', { room });
+  getSocket().emit("player_lost", { room });
   dispatch({ type: PLAYER_LOST });
 };
 

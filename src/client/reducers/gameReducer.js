@@ -1,5 +1,5 @@
 import {
-  SET_PLAYER, GAME_UPDATED, GAME_STARTED, GAME_OVER,
+  SET_PLAYER, GAME_UPDATED, GAME_STARTED, GAME_OVER, GAME_RESTARTED,
   SET_ERROR, CLEAR_ERROR, OPPONENT_SPECTRUM, HIGH_SCORES,
 } from '../actions/types';
 
@@ -14,13 +14,25 @@ const initialState = {
   highScores: [],
 };
 
+// Keep state.player in sync with the server's player list (e.g. host changes)
+function syncPlayer(state, gamePlayers) {
+  if (!state.player || !Array.isArray(gamePlayers)) return null;
+  return gamePlayers.find((p) => p.name === state.player.name) || null;
+}
+
 const gameReducer = (state = initialState, action) => {
   switch (action.type) {
     case SET_PLAYER:
       return { ...state, player: action.payload };
 
-    case GAME_UPDATED:
-      return { ...state, game: action.payload };
+    case GAME_UPDATED: {
+      const synced = syncPlayer(state, action.payload?.players);
+      return {
+        ...state,
+        game: action.payload,
+        ...(synced ? { player: synced } : {}),
+      };
+    }
 
     case GAME_STARTED:
       return {
@@ -39,6 +51,19 @@ const gameReducer = (state = initialState, action) => {
         isOver: true,
         winner: action.payload.winner,
       };
+
+    case GAME_RESTARTED: {
+      const synced = syncPlayer(state, action.payload?.players);
+      return {
+        ...state,
+        game: action.payload,
+        isPlaying: false,
+        isOver: false,
+        winner: null,
+        opponents: {},
+        ...(synced ? { player: synced } : {}),
+      };
+    }
 
     case OPPONENT_SPECTRUM: {
       const { playerId, playerName, spectrum } = action.payload;

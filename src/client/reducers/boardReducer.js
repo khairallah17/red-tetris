@@ -1,6 +1,6 @@
 import {
   NEW_PIECE, MOVE_LEFT, MOVE_RIGHT, MOVE_DOWN,
-  ROTATE_PIECE, HARD_DROP, ADD_PENALTY, PLAYER_LOST, RESET_BOARD,
+  ROTATE_PIECE, HARD_DROP, ADD_PENALTY, PLAYER_LOST, RESET_BOARD, GAME_UPDATED, GAME_RESTARTED,
 } from '../actions/types';
 
 import {
@@ -169,6 +169,15 @@ const boardReducer = (state = initialState, action) => {
 
     case PLAYER_LOST:
       return { ...state, isLost: true };
+
+    case GAME_UPDATED:
+      if (action.payload?.state === 'waiting' && state.isLost) {
+        return { ...state, isLost: false };
+      }
+      return state;
+
+    case GAME_RESTARTED:
+      return { ...state, isLost: false };
 
     default:
       return state;

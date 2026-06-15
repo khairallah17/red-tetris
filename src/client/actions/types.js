@@ -24,3 +24,5 @@ export const RESET_BOARD = 'RESET_BOARD';
 
 // Bonus: leaderboard
 export const HIGH_SCORES = 'HIGH_SCORES';
+
+export const GAME_RESTARTED = 'GAME_RESTARTED';

@@ -104,7 +104,7 @@ Game.prototype.reset = function () {
 };
 
 Game.prototype.isOpen = function () {
-  return this.state === GAME_STATES.WAITING;
+  return this.state === GAME_STATES.WAITING || this.state === GAME_STATES.ENDED;
 };
 
 Game.prototype.isEmpty = function () {

@@ -188,7 +188,7 @@ const GameScreen = () => {
           </div>
           {player?.isHost && isOver && (
             <button
-              onClick={() => dispatch(restartGame(room))}
+              onClick={() => dispatch(restartGame(room, player?.name))}
               style={{
                 padding: '12px 32px',
                 fontSize: 16,
