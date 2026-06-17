@@ -166,10 +166,10 @@ describe('boardReducer: scoring (bonus)', () => {
     expect(state.level).toBe(1);
   });
 
-  it('awards a point for a manual soft drop', () => {
+  it('does not award points for a manual soft drop', () => {
     const state = freshState({ currentPiece: makePiece({ x: 4, y: 5 }) });
     const result = boardReducer(state, { type: MOVE_DOWN, payload: { soft: true } });
-    expect(result.score).toBe(1);
+    expect(result.score).toBe(0);
   });
 
   it('does not award points for a gravity tick', () => {
@@ -187,15 +187,15 @@ describe('boardReducer: scoring (bonus)', () => {
     expect(result.score).toBe(40); // one line at level 1
   });
 
-  it('awards hard-drop distance points plus line clears', () => {
+  it('awards line-clear points for hard drop', () => {
     const state = freshState({
       currentPiece: { type: 'I', color: 'cyan', x: 3, y: 0, shape: [[1, 1, 1, 1]] },
     });
     state.board[BOARD_HEIGHT - 1] = fillRowExcept([3, 4, 5, 6]);
     const result = boardReducer(state, { type: HARD_DROP });
-    // 1 line cleared (40) + drop distance bonus (2 per cell)
+    // 1 line cleared = 40 points at level 1
     expect(result.linesCleared).toBe(1);
-    expect(result.score).toBeGreaterThan(40);
+    expect(result.score).toBe(40);
   });
 
   it('raises the level after 10 cleared lines', () => {
