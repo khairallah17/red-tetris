@@ -1,6 +1,6 @@
 import gameReducer from '../../src/client/reducers/gameReducer';
 import {
-  SET_PLAYER, GAME_UPDATED, GAME_STARTED, GAME_OVER,
+  SET_PLAYER, GAME_UPDATED, GAME_STARTED, GAME_OVER, GAME_RESTARTED,
   SET_ERROR, CLEAR_ERROR, OPPONENT_SPECTRUM, HIGH_SCORES,
 } from '../../src/client/actions/types';
 
@@ -83,6 +83,38 @@ describe('gameReducer', () => {
     const scores = [{ name: 'Alice', score: 1200 }, { name: 'Bob', score: 800 }];
     const state = gameReducer(undefined, { type: HIGH_SCORES, payload: scores });
     expect(state.highScores).toEqual(scores);
+  });
+
+  it('GAME_UPDATED syncs player when player is already set', () => {
+    const updatedPlayer = { ...mockPlayer, isHost: false };
+    const prev = { ...initialState, player: mockPlayer };
+    const game = { ...mockGame, players: [updatedPlayer] };
+    const state = gameReducer(prev, { type: GAME_UPDATED, payload: game });
+    expect(state.player).toEqual(updatedPlayer);
+  });
+
+  it('GAME_RESTARTED resets playing state and clears opponents', () => {
+    const prev = {
+      ...initialState,
+      isPlaying: true,
+      isOver: true,
+      winner: 'MedK',
+      opponents: { p1: { playerName: 'Opp1', spectrum: [1] } },
+    };
+    const state = gameReducer(prev, { type: GAME_RESTARTED, payload: mockGame });
+    expect(state.isPlaying).toBe(false);
+    expect(state.isOver).toBe(false);
+    expect(state.winner).toBeNull();
+    expect(state.opponents).toEqual({});
+    expect(state.game).toEqual(mockGame);
+  });
+
+  it('GAME_RESTARTED syncs player from new game state', () => {
+    const updatedPlayer = { ...mockPlayer, isHost: false };
+    const prev = { ...initialState, player: mockPlayer };
+    const game = { ...mockGame, players: [updatedPlayer] };
+    const state = gameReducer(prev, { type: GAME_RESTARTED, payload: game });
+    expect(state.player).toEqual(updatedPlayer);
   });
 
   it('unknown action returns state unchanged', () => {
